@@ -11,12 +11,14 @@ module Session
   @track_history = ENV['SESSION_HISTORY'] || ENV['SESSION_TRACK_HISTORY']
   @use_spawn     = ENV['SESSION_USE_SPAWN']
   @use_open3     = ENV['SESSION_USE_OPEN3']
+  @use_open4     = ENV['SESSION_USE_OPEN4']
   @debug         = ENV['SESSION_DEBUG']
 
   class << self
     attr :track_history, true
     attr :use_spawn, true
     attr :use_open3, true
+    attr :use_open4, true
     attr :debug, true
     def new(*a, &b)
       Sh::new(*a, &b)
@@ -99,11 +101,13 @@ module Session
       attr :track_history, true
       attr :use_spawn, true
       attr :use_open3, true
+      attr :use_open4, true
       attr :debug, true
       def init
         @track_history = nil
         @use_spawn = nil
         @use_open3 = nil
+        @use_open4 = nil
         @debug = nil
       end
       alias [] new
@@ -127,10 +131,12 @@ module Session
     attr :errproc, true
     attr :use_spawn
     attr :use_open3
+    attr :use_open4
     attr :debug, true
     alias debug? debug
     attr :threads
-
+    attr :pid
+    
   # instance methods
     def initialize(*args)
       @opts = hashify(*args)
@@ -150,14 +156,15 @@ module Session
       @use_spawn = self.class::use_spawn unless self.class::use_spawn.nil?
       @use_spawn = getopt('use_spawn', opts) if hasopt('use_spawn', opts)
 
-      if defined? JRUBY_VERSION
-        @use_open3 = true
-      else
-        @use_open3 = nil
-        @use_open3 = Session::use_open3 unless Session::use_open3.nil?
-        @use_open3 = self.class::use_open3 unless self.class::use_open3.nil?
-        @use_open3 = getopt('use_open3', opts) if hasopt('use_open3', opts)
-      end
+      @use_open3 = nil
+      @use_open3 = Session::use_open3 unless Session::use_open3.nil?
+      @use_open3 = self.class::use_open3 unless self.class::use_open3.nil?
+      @use_open3 = getopt('use_open3', opts) if hasopt('use_open3', opts)
+      
+      @use_open4 = nil
+      @use_open4 = Session::use_open4 unless Session::use_open4.nil?
+      @use_open4 = self.class::use_open4 unless self.class::use_open4.nil?
+      @use_open4 = getopt('use_open4', opts) if hasopt('use_open4', opts) 
 
       @debug = nil
       @debug = Session::debug unless Session::debug.nil?
@@ -170,7 +177,9 @@ module Session
       @outproc = nil
       @errproc = nil
 
-      @stdin, @stdout, @stderr =
+      if @use_open4
+        @pid, @stdin, @stdout, @stderr = IO::popen4 @prog
+      else
         if @use_spawn
           Spawn::spawn @prog
         elsif @use_open3
@@ -178,7 +187,7 @@ module Session
         else
           __popen3 @prog
         end
-
+      end
       @threads = []
 
       clear
